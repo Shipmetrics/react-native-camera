@@ -48,6 +48,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.SortedSet;
+import android.os.Build;
 
 @SuppressWarnings("MissingPermission")
 @TargetApi(21)
@@ -145,20 +146,24 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener, Me
 
         @Override
         public void onPrecaptureRequired() {
+            Log.e("CAMERAV2", "ON PRECAPTURE REQURIED");
             mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER,
                     CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER_START);
             setState(STATE_PRECAPTURE);
             try {
+                Log.e("CAMERAV2", "ON PRECAPTURE REQURIED  inner");
                 mCaptureSession.capture(mPreviewRequestBuilder.build(), this, null);
                 mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER,
                         CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER_IDLE);
             } catch (CameraAccessException e) {
+                Log.e("CAMERAV2", "ON PRECAPTURE REQURIED failed");
                 Log.e(TAG, "Failed to run precapture sequence.", e);
             }
         }
 
         @Override
         public void onReady() {
+            Log.e("CAMERAV2", "ON READY");
             captureStillPicture();
         }
 
@@ -274,6 +279,7 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener, Me
 
     @Override
     boolean start() {
+
         if (!chooseCameraIdByFacing()) {
             mAspectRatio = mInitialRatio;
             return false;
@@ -354,6 +360,11 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener, Me
 
     @Override
     void setPictureSize(Size size) {
+
+      if (Build.MODEL.contains("M3SM15N")) {
+        Log.e("CAMERAV2", "SKIPPING SET PICTURE SIZE DUE TO M3 BUG " + Build.MODEL);
+        return;
+    }
         if (mCaptureSession != null) {
             try {
                 mCaptureSession.stopRepeating();
@@ -367,7 +378,7 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener, Me
             mStillImageReader.close();
         }
         if (size == null) {
-          if (mAspectRatio == null) {
+          if (mAspectRatio == null || mPictureSizes == null || mPictureSizes.sizes(mAspectRatio) == null) {
             return;
           }
           mPictureSizes.sizes(mAspectRatio).last();
@@ -376,6 +387,7 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener, Me
         }
         prepareStillImageReader();
         startCaptureSession();
+        return;
     }
 
     @Override
@@ -461,10 +473,16 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener, Me
 
     @Override
     void takePicture() {
-        if (mAutoFocus) {
-            lockFocus();
-        } else {
+        if (Build.MODEL.contains("M3SM15")) {
+            Log.e("CAMERAV2", "SKIPPING LCOK FOCUS DUE TO M3 SM 10N BUG " + Build.MODEL);
             captureStillPicture();
+        } else {
+            if (mAutoFocus) {
+                Log.e("CAMERAV2", "CALLED lock PICUTRE");
+                lockFocus();
+            } else {
+                captureStillPicture();
+            }
         }
     }
 
@@ -618,6 +636,7 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener, Me
      * {@link #mFacing}.</p>
      */
     private boolean chooseCameraIdByFacing() {
+        Log.e("CAMERAV2", "CHOOSE CAMERA");
         try {
             int internalFacing = INTERNAL_FACINGS.get(mFacing);
             final String[] ids = mCameraManager.getCameraIdList();
@@ -626,11 +645,18 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener, Me
             }
             for (String id : ids) {
                 CameraCharacteristics characteristics = mCameraManager.getCameraCharacteristics(id);
+                Log.e("CAMERAV2", "CHOOSE CAMERA 1 " + id);
+                Log.e("CAMERAV2", "CHOOSE CAMERA 2 " + characteristics.toString());
                 Integer level = characteristics.get(
                         CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL);
-                if (level == null ||
-                        level == CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY) {
-                    continue;
+                if (Build.MODEL.contains("M3SM15")) {
+                    Log.e("CAMERAV2", "SKIPPING LEGACY CHECK DUE TO M3 BUG " + Build.MODEL);
+                } else {
+                    Log.e("CAMERAV2", "EXECUTING LEGACY CHECK " + Build.MODEL);
+                    if (level == null ||
+                            level == CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY) {
+                        continue;
+                    }
                 }
                 Integer internal = characteristics.get(CameraCharacteristics.LENS_FACING);
                 if (internal == null) {
@@ -692,7 +718,9 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener, Me
         mPictureSizes.clear();
         collectPictureSizes(mPictureSizes, map);
         if (mPictureSize == null) {
+          Log.e("CRASH SEARCH", "V3");
             mPictureSize = mPictureSizes.sizes(mAspectRatio).last();
+            Log.e("CRASH SEARCH", "V4");
         }
         for (AspectRatio ratio : mPreviewSizes.ratios()) {
             if (!mPictureSizes.ratios().contains(ratio)) {
@@ -724,7 +752,9 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener, Me
         if (mScanImageReader != null) {
             mScanImageReader.close();
         }
+        Log.e("CRASH SEARCH", "V5");
         Size largest = mPreviewSizes.sizes(mAspectRatio).last();
+        Log.e("CRASH SEARCH", "V6");
         mScanImageReader = ImageReader.newInstance(largest.getWidth(), largest.getHeight(),
                 ImageFormat.YUV_420_888, 1);
         mScanImageReader.setOnImageAvailableListener(mOnImageAvailableListener, null);
@@ -994,6 +1024,7 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener, Me
         try {
             mCaptureCallback.setState(PictureCaptureCallback.STATE_LOCKING);
             mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback, null);
+            Log.e("CAMERAV2", "CALLED lock PICUTRE done");
         } catch (CameraAccessException e) {
             Log.e(TAG, "Failed to lock focus.", e);
         }
