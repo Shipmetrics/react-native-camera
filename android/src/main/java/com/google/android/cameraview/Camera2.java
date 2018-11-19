@@ -41,8 +41,6 @@ import android.view.Surface;
 import android.os.Handler;
 import android.os.Looper;
 
-import com.facebook.react.bridge.ReadableMap;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -475,7 +473,6 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener, Me
 
     @Override
     void takePicture() {
-        mCaptureCallback.setOptions(options);
         if (Build.MODEL.contains("M3SM15")) {
             Log.e("CAMERAV2", "SKIPPING LCOK FOCUS DUE TO M3 SM 10N BUG " + Build.MODEL);
             captureStillPicture();
@@ -1083,10 +1080,7 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener, Me
                         public void onCaptureCompleted(@NonNull CameraCaptureSession session,
                                 @NonNull CaptureRequest request,
                                 @NonNull TotalCaptureResult result) {
-                            if (mCaptureCallback.getOptions().hasKey("stopPreviewAfterCapture")
-                              && !mCaptureCallback.getOptions().getBoolean("stopPreviewAfterCapture")) {
-                                unlockFocus();
-                            }
+                            unlockFocus();
                         }
                     }, null);
         } catch (CameraAccessException e) {
@@ -1224,7 +1218,6 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener, Me
         static final int STATE_CAPTURING = 5;
 
         private int mState;
-        private ReadableMap mOptions = null;
 
         PictureCaptureCallback() {
         }
@@ -1232,10 +1225,6 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener, Me
         void setState(int state) {
             mState = state;
         }
-
-        void setOptions(ReadableMap options) { mOptions = options; }
-
-        ReadableMap getOptions() { return mOptions; }
 
         @Override
         public void onCaptureProgressed(@NonNull CameraCaptureSession session,

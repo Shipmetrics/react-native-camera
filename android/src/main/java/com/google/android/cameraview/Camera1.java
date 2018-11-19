@@ -25,8 +25,6 @@ import android.os.Build;
 import android.support.v4.util.SparseArrayCompat;
 import android.view.SurfaceHolder;
 
-import com.facebook.react.bridge.ReadableMap;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
@@ -379,7 +377,7 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
     }
 
     @Override
-    void takePicture(final ReadableMap options) {
+    void takePicture() {
         if (!isCameraOpened()) {
             throw new IllegalStateException(
                     "Camera is not ready. Call start() before takePicture().");
@@ -392,25 +390,23 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
             mCamera.autoFocus(new Camera.AutoFocusCallback() {
                 @Override
                 public void onAutoFocus(boolean success, Camera camera) {
-                    takePictureInternal(options);
+                    takePictureInternal();
                 }
             });
         } else {
-            takePictureInternal(options);
+            takePictureInternal();
         }
     }
 
-    void takePictureInternal(final ReadableMap options) {
+    void takePictureInternal() {
         if (!isPictureCaptureInProgress.getAndSet(true)) {
             mCamera.takePicture(null, null, null, new Camera.PictureCallback() {
                 @Override
                 public void onPictureTaken(byte[] data, Camera camera) {
                     isPictureCaptureInProgress.set(false);
                     camera.cancelAutoFocus();
-                    if (options.hasKey("pauseAfterCapture") && !options.getBoolean("pauseAfterCapture")) {
-                        camera.startPreview();
-                        mIsPreviewActive = true;
-                    }
+                    camera.startPreview();
+                    mIsPreviewActive = true;
                     if (mIsScanning) {
                         camera.setPreviewCallback(Camera1.this);
                     }
